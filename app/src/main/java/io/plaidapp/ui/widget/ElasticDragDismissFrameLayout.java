@@ -37,6 +37,7 @@ import io.plaidapp.util.ViewUtils;
  * Applies an elasticity factor to reduce movement as you approach the given dismiss distance.
  * Optionally also scales down content during drag.
  */
+//这个值得仔细研究一下，精华在此
 public class ElasticDragDismissFrameLayout extends FrameLayout {
 
     // configurable attribs

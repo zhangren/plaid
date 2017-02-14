@@ -96,62 +96,72 @@ import io.plaidapp.util.ViewUtils;
 
 
 public class HomeActivity extends Activity {
-
+    //定义了一堆常量，用来标识进入这个页面时的前置页面，即从哪些页面跳过来的，如搜索，登陆等；
     private static final int RC_SEARCH = 0;
     private static final int RC_AUTH_DRIBBBLE_FOLLOWING = 1;
     private static final int RC_AUTH_DRIBBBLE_USER_LIKES = 2;
     private static final int RC_AUTH_DRIBBBLE_USER_SHOTS = 3;
     private static final int RC_NEW_DESIGNER_NEWS_STORY = 4;
     private static final int RC_NEW_DESIGNER_NEWS_LOGIN = 5;
-
-    @BindView(R.id.drawer) DrawerLayout drawer;
+    //各个view的绑定
+    @BindView(R.id.drawer) DrawerLayout drawer;//这个layout可以实现抽屉效果，通过open/closeDrawer来实现，只要把对应抽屉的视图gravity设置成end或left即可
     @BindView(R.id.toolbar) Toolbar toolbar;
     @BindView(R.id.grid) RecyclerView grid;
     @BindView(R.id.fab) ImageButton fab;
     @BindView(R.id.filters) RecyclerView filtersList;
     @BindView(android.R.id.empty) ProgressBar loading;
     @Nullable @BindView(R.id.no_connection) ImageView noConnection;
+    //一个ImageButton
     ImageButton fabPosting;
+    //Grid的layout,用来初始化RecyclerView
     GridLayoutManager layoutManager;
+    //int值也从xml文件中bind而来，这个值定义在dimens.xml文件中，dimens.xml文件是用来放各种想重用的值的xml文件
     @BindInt(R.integer.num_columns) int columns;
+    //判断是否联网的bool值
     boolean connected = true;
-    private TextView noFiltersEmptyText;
-    private boolean monitoringConnectivity = false;
+    private TextView noFiltersEmptyText;//一个viewStub，id是stub_no_filters，它要因条件而显示，因此未直接绑定
+    private boolean monitoringConnectivity = false;//监控连接状态的标志位？
 
     // data
-    DataManager dataManager;
-    FeedAdapter adapter;
-    FilterAdapter filtersAdapter;
-    private DesignerNewsPrefs designerNewsPrefs;
-    private DribbblePrefs dribbblePrefs;
+    DataManager dataManager;//存取数据对象的管理器
+    FeedAdapter adapter;//feed适配器
+    FilterAdapter filtersAdapter;//filter适配器，展示有哪些选项？
+    private DesignerNewsPrefs designerNewsPrefs;//preference选项，应该是选中菜单的那个列表
+    private DribbblePrefs dribbblePrefs;//preference选项，应该是选中菜单的那个列表
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_home);
-        ButterKnife.bind(this);
+        ButterKnife.bind(this);//执行BindView等东西？
 
-        drawer.setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+        drawer.setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_STABLE//隐藏一些系统栏
                 | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
                 | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION);
 
-        setActionBar(toolbar);
-        if (savedInstanceState == null) {
-            animateToolbar();
+        setActionBar(toolbar);//设置toolbar，其中的菜单项在menu里的main.xml里定义
+        if (savedInstanceState == null) {//如果savedInstanceState为空，也就是非异常退出，则显示动画，只是一个透明度的设置
+            animateToolbar();//设置透明度并放大一点
         }
+        //这玩意就是用来判断哪些元素是两个activity共有的并能实现平滑过渡的；应该是MD主题里默认带android:windowContentTransitions属性
+        //本应用的主题继承自Theme.AppCompat.Light.NoActionBar
+        //想要共享的元素要有相同的TransitionName，可以在XML文件里面声明，或者在代码里面setTransitionName()。
+        //这里使用了RecyclerView要去设置TransitionName就应该去adapter里面设置。这里使用了AppCompatActivity,所以可以ViewCompat.setTransitionName(holder.imageView, image.getUrl());
+        //还需要实现onMapSharedElements等方法回调用来匹配共同的View元素，复杂效果还可以自己实现一些onStartXXX之类的东西
         setExitSharedElementCallback(FeedAdapter.createSharedElementReenterCallback(this));
-
+        //一个prefs变量
         dribbblePrefs = DribbblePrefs.get(this);
         designerNewsPrefs = DesignerNewsPrefs.get(this);
+        //跟筛选有关，应该是用来展示筛选列表表的adaptor。
         filtersAdapter = new FilterAdapter(this, SourceManager.getSources(this),
-                new FilterAdapter.FilterAuthoriser() {
+                new FilterAdapter.FilterAuthoriser() {//用来控制点击后，是否需要显示登陆提示的界面
             @Override
-            public void requestDribbbleAuthorisation(View sharedElement, Source forSource) {
+            public void requestDribbbleAuthorisation(View sharedElement, Source forSource) {//点了筛选源如果需要登陆时使用该动画
                 Intent login = new Intent(HomeActivity.this, DribbbleLogin.class);
                 MorphTransform.addExtras(login,
                         ContextCompat.getColor(HomeActivity.this, R.color.background_dark),
                         sharedElement.getHeight() / 2);
-                ActivityOptions options =
+                ActivityOptions options =//提供转场动画，在startActivity时领域知识这个option参数即可实现动画效果
                         ActivityOptions.makeSceneTransitionAnimation(HomeActivity.this,
                                 sharedElement, getString(R.string.transition_dribbble_login));
                 startActivityForResult(login,
@@ -160,15 +170,15 @@ public class HomeActivity extends Activity {
         });
         dataManager = new DataManager(this, filtersAdapter) {
             @Override
-            public void onDataLoaded(List<? extends PlaidItem> data) {
-                adapter.addAndResort(data);
-                checkEmptyState();
+            public void onDataLoaded(List<? extends PlaidItem> data) {//网络请求数据返回后会调用此方法
+                adapter.addAndResort(data);//加入，并且排序
+                checkEmptyState();//处理一下零结果
             }
         };
         adapter = new FeedAdapter(this, dataManager, columns, PocketUtils.isPocketInstalled(this));
 
-        grid.setAdapter(adapter);
-        layoutManager = new GridLayoutManager(this, columns);
+        grid.setAdapter(adapter);//grid为recyclerView类型，它的adaptor主要用来返回具体的viewItem
+        layoutManager = new GridLayoutManager(this, columns);//设置recyclerView的layout为grid形式
         layoutManager.setSpanSizeLookup(new GridLayoutManager.SpanSizeLookup() {
             @Override
             public int getSpanSize(int position) {
@@ -176,8 +186,8 @@ public class HomeActivity extends Activity {
             }
         });
         grid.setLayoutManager(layoutManager);
-        grid.addOnScrollListener(toolbarElevation);
-        grid.addOnScrollListener(new InfiniteScrollListener(layoutManager, dataManager) {
+        grid.addOnScrollListener(toolbarElevation);//toolbar随着滚动而被覆盖，只要滚动起来，就设置toolbar Z位置为-1
+        grid.addOnScrollListener(new InfiniteScrollListener(layoutManager, dataManager) {//向上滚动时一直加载
             @Override
             public void onLoadMore() {
                 dataManager.loadAllDataSources();
@@ -185,12 +195,12 @@ public class HomeActivity extends Activity {
         });
         grid.setHasFixedSize(true);
         grid.addItemDecoration(new GridItemDividerDecoration(adapter.getDividedViewHolderClasses(),
-                this, R.dimen.divider_height, R.color.divider));
+                this, R.dimen.divider_height, R.color.divider));//设置recyclerview的分隔符
         grid.setItemAnimator(new HomeGridItemAnimator());
 
-        // drawer layout treats fitsSystemWindows specially so we have to handle insets ourselves
+        // drawer layout treats fitsSystemWindows specially so we have to handle insets ourselves,状态栏是否沉浸式的问题由此设定
         drawer.setOnApplyWindowInsetsListener(new View.OnApplyWindowInsetsListener() {
-            @Override
+            @Override//在android 6.0以上系统上，系统状态栏会是半透明的效果，主要设置了一些边框
             public WindowInsets onApplyWindowInsets(View v, WindowInsets insets) {
                 // inset the toolbar down by the status bar height
                 ViewGroup.MarginLayoutParams lpToolbar = (ViewGroup.MarginLayoutParams) toolbar
@@ -251,21 +261,22 @@ public class HomeActivity extends Activity {
         filtersList.setItemAnimator(new FilterAdapter.FilterAnimator());
         filtersAdapter.registerFilterChangedCallback(filtersChangedCallbacks);
         dataManager.loadAllDataSources();
-        ItemTouchHelper.Callback callback = new FilterTouchHelperCallback(filtersAdapter);
+        //可以用来处理recyclerview中元素的拖放，扫动等；
+        ItemTouchHelper.Callback callback = new FilterTouchHelperCallback(filtersAdapter);//RecyclerView的触摸事件回调
         ItemTouchHelper itemTouchHelper = new ItemTouchHelper(callback);
         itemTouchHelper.attachToRecyclerView(filtersList);
-        checkEmptyState();
+        checkEmptyState();//检查空结果
     }
 
     @Override
-    protected void onResume() {
+    protected void onResume() {//activity重新活动时状态设置，恢复一些监听器之类的
         super.onResume();
         dribbblePrefs.addLoginStatusListener(filtersAdapter);
         checkConnectivity();
     }
 
     @Override
-    protected void onPause() {
+    protected void onPause() {//移除一些监听器
         dribbblePrefs.removeLoginStatusListener(filtersAdapter);
         if (monitoringConnectivity) {
             final ConnectivityManager connectivityManager
@@ -306,12 +317,12 @@ public class HomeActivity extends Activity {
     }
 
     @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
+    public boolean onCreateOptionsMenu(Menu menu) {//按钮在menu/main.xml里定义不是默认，而是这里添加的
         getMenuInflater().inflate(R.menu.main, menu);
         return true;
     }
 
-    @Override
+    @Override//准备按钮，登陆过则显示登出提示
     public boolean onPrepareOptionsMenu(Menu menu) {
         final MenuItem dribbbleLogin = menu.findItem(R.id.menu_dribbble_login);
         if (dribbbleLogin != null) {
@@ -329,7 +340,7 @@ public class HomeActivity extends Activity {
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
-            case R.id.menu_filter:
+            case R.id.menu_filter://DrawerLayout的抽屉属性
                 drawer.openDrawer(GravityCompat.END);
                 return true;
             case R.id.menu_search:
@@ -337,7 +348,7 @@ public class HomeActivity extends Activity {
                 Bundle options = ActivityOptions.makeSceneTransitionAnimation(this, searchMenuView,
                         getString(R.string.transition_search_back)).toBundle();
                 startActivityForResult(new Intent(this, SearchActivity.class), RC_SEARCH, options);
-                return true;
+                return true;//也是共享动画，ActivityOptions里增加共享元素动画。
             case R.id.menu_dribbble_login:
                 if (!dribbblePrefs.isLoggedIn()) {
                     dribbblePrefs.login(HomeActivity.this);
@@ -360,7 +371,7 @@ public class HomeActivity extends Activity {
                 return true;
             case R.id.menu_about:
                 startActivity(new Intent(HomeActivity.this, AboutActivity.class),
-                        ActivityOptions.makeSceneTransitionAnimation(this).toBundle());
+                        ActivityOptions.makeSceneTransitionAnimation(this).toBundle());//sharedElement为空的动画
                 return true;
         }
         return super.onOptionsItemSelected(item);
@@ -368,14 +379,14 @@ public class HomeActivity extends Activity {
 
     @Override
     public void onBackPressed() {
-        if (drawer.isDrawerOpen(GravityCompat.END)) {
+        if (drawer.isDrawerOpen(GravityCompat.END)) {//如果有抽屉，后退时先关抽屉
             drawer.closeDrawer(GravityCompat.END);
         } else {
             super.onBackPressed();
         }
     }
 
-    @Override
+    @Override//处理从各个页面返回来的情况
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         switch (requestCode) {
             case RC_SEARCH:
@@ -479,16 +490,16 @@ public class HomeActivity extends Activity {
                     && layoutManager.findViewByPosition(0).getTop() == grid.getPaddingTop()
                     && toolbar.getTranslationZ() != 0) {
                 // at top, reset elevation
-                toolbar.setTranslationZ(0f);
+                toolbar.setTranslationZ(0f);//MS这里的elevation是指视图高度，而translationZ是指在Z上相对vie平面的高度；
             } else if (newState == RecyclerView.SCROLL_STATE_DRAGGING
                     && toolbar.getTranslationZ() != -1f) {
                 // grid scrolled, lower toolbar to allow content to pass in front
-                toolbar.setTranslationZ(-1f);
+                toolbar.setTranslationZ(-1f);//此时会隐藏
             }
         }
     };
 
-    @OnClick(R.id.fab)
+    @OnClick(R.id.fab)//收藏按钮被点击
     protected void fabClick() {
         if (designerNewsPrefs.isLoggedIn()) {
             Intent intent = new Intent(this, PostNewDesignerNewsStory.class);
@@ -509,6 +520,7 @@ public class HomeActivity extends Activity {
         }
     }
 
+    //分享回调监听，重点再看一下about之类的页面，如何通过上下拉回到这个页面的。精华在ElasticDragDismissFrameLayout
     BroadcastReceiver postStoryResultReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
@@ -687,16 +699,16 @@ public class HomeActivity extends Activity {
 
     }
 
-    private void setupTaskDescription() {
+    private void setupTaskDescription() {//在退到后台可供切换时的缩略信息作为任务描述
         Bitmap overviewIcon =
                 BitmapFactory.decodeResource(getResources(), getApplicationInfo().icon);
         setTaskDescription(new ActivityManager.TaskDescription(getString(R.string.app_name),
                 overviewIcon,
-                ContextCompat.getColor(this, R.color.primary)));
+                ContextCompat.getColor(this, R.color.primary_dark)));
         overviewIcon.recycle();
     }
 
-    private void animateToolbar() {
+    private void animateToolbar() {//字体和大小稍微变一下
         // this is gross but toolbar doesn't expose it's children to animate them :(
         View t = toolbar.getChildAt(0);
         if (t != null && t instanceof TextView) {
