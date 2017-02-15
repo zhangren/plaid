@@ -37,11 +37,11 @@ import io.plaidapp.util.ViewUtils;
  * A view which punches out some text from an opaque color block, allowing you to see through it.
  */
 public class CutoutTextView extends View {
-
+    //实现透明效果的，就是这货！
     public static final float PHI = 1.6182f;
     private final TextPaint textPaint;
     private Bitmap cutout;
-    private int foregroundColor = Color.MAGENTA;
+    private int foregroundColor = Color.RED;
     private String text;
     private float textSize;
     private float textY;
@@ -100,7 +100,7 @@ public class CutoutTextView extends View {
         Canvas cutoutCanvas = new Canvas(cutout);
         cutoutCanvas.drawColor(foregroundColor);
 
-        // this is the magic – Clear mode punches out the bitmap
+        // this is the magic – Clear mode punches out the bitmap,关键点在这里，实现透明效果，画布上用CLEAR模式，如果用其它的则会有颜色
         textPaint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.CLEAR));
         cutoutCanvas.drawText(text, textX, textY, textPaint);
     }

@@ -176,7 +176,7 @@ public class ElasticDragDismissFrameLayout extends FrameLayout {
         }
     }
 
-    private void dragScale(int scroll) {
+    private void dragScale(int scroll) {//拉动时的效果通过这里实现
         if (scroll == 0) return;
 
         totalDrag += scroll;
@@ -186,10 +186,10 @@ public class ElasticDragDismissFrameLayout extends FrameLayout {
         // dragging down until they reach the 'natural' position
         if (scroll < 0 && !draggingUp && !draggingDown) {
             draggingDown = true;
-            if (shouldScale) setPivotY(getHeight());
+            if (shouldScale) setPivotY(getHeight());//下拉时，中心点设置到下边缘
         } else if (scroll > 0 && !draggingDown && !draggingUp) {
             draggingUp = true;
-            if (shouldScale) setPivotY(0f);
+            if (shouldScale) setPivotY(0f);//上拉时设置中心点到上边缘
         }
         // how far have we dragged relative to the distance to perform a dismiss
         // (0–1 where 1 = dismiss distance). Decreasing logarithmically as we approach the limit
@@ -203,9 +203,9 @@ public class ElasticDragDismissFrameLayout extends FrameLayout {
             // re-apply the drag direction
             dragTo *= -1;
         }
-        setTranslationY(dragTo);
+        setTranslationY(dragTo);//这里是设置整个activity的view到一定偏移，将背后activity露出就靠它
 
-        if (shouldScale) {
+        if (shouldScale) {//绽放一下view
             final float scale = 1 - ((1 - dragDismissScale) * dragFraction);
             setScaleX(scale);
             setScaleY(scale);

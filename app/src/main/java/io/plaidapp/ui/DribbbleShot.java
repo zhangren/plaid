@@ -108,7 +108,7 @@ public class DribbbleShot extends Activity {
     private static final float SCRIM_ADJUSTMENT = 0.075f;
 
     @BindView(R.id.draggable_frame) ElasticDragDismissFrameLayout draggableFrame;
-    @BindView(R.id.back) ImageButton back;
+    @BindView(R.id.back) ImageButton back;//按钮是单独添加的，不是系统默认的，也就是它隐藏掉了系统的toobar
     @BindView(R.id.shot) ParallaxScrimageView imageView;
     @BindView(R.id.dribbble_comments) RecyclerView commentsList;
     @BindView(R.id.fab_heart) FABToggle fab;
